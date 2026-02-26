@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
+from pathlib import Path
 
 from rich.console import Console
 
@@ -97,7 +98,15 @@ def cmd_run(config: PipelineConfig) -> None:
     cmd_fetch(config)
 
     console.rule("[bold]Step 2: Generate Training Data")
-    cmd_generate(config)
+    data_file = Path(config.datagen.output_path)
+    if data_file.exists() and data_file.stat().st_size > 0:
+        console.print(
+            f"[green]Training data already exists at {data_file} "
+            f"({data_file.stat().st_size // 1024}KB) — skipping generation[/green]"
+        )
+        console.print("[dim]To regenerate, delete the file and re-run[/dim]")
+    else:
+        cmd_generate(config)
 
     console.rule("[bold]Step 3: Train Model")
     from .training import train, smoke_test
