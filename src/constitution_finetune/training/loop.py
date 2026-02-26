@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import math
 import random
+from pathlib import Path
 
 import tinker
 from rich.console import Console
@@ -14,6 +16,8 @@ from ..config import TrainingConfig
 from .data import load_jsonl, prepare_datums
 
 console = Console()
+
+CHECKPOINT_TTL = 7 * 24 * 3600  # 7 days
 
 
 def _get_lr(step: int, total_steps: int, config: TrainingConfig) -> float:
@@ -59,9 +63,11 @@ def train(
 
     # Save base model checkpoint before training (LoRA is zero-initialized)
     console.print("[bold]Saving base model checkpoint...[/bold]")
-    base_sampling_client = training_client.save_weights_and_get_sampling_client(
-        name=f"{config.run_name}-base"
-    )
+    base_path = training_client.save_weights_for_sampler(
+        name=f"{config.run_name}-base", ttl_seconds=CHECKPOINT_TTL
+    ).result()
+    base_sampling_client = service_client.create_sampling_client(model_path=base_path)
+    console.print(f"[dim]Base checkpoint: {base_path}[/dim]")
 
     # Calculate training schedule
     n_batches_per_epoch = math.ceil(len(datums) / config.batch_size)
@@ -135,14 +141,27 @@ def train(
                     progress.console.print(
                         f"  [blue]Saving checkpoint at step {global_step}...[/blue]"
                     )
-                    training_client.save_weights_and_get_sampling_client(
-                        name=f"{config.run_name}-step{global_step:06d}"
+                    training_client.save_weights_for_sampler(
+                        name=f"{config.run_name}-step{global_step:06d}",
+                        ttl_seconds=CHECKPOINT_TTL,
                     )
 
     # Save final model
     console.print("[bold green]Training complete! Saving final model...[/bold green]")
-    finetuned_sampling_client = training_client.save_weights_and_get_sampling_client(
-        name=f"{config.run_name}-final"
-    )
+    final_path = training_client.save_weights_for_sampler(
+        name=f"{config.run_name}-final", ttl_seconds=CHECKPOINT_TTL
+    ).result()
+    finetuned_sampling_client = service_client.create_sampling_client(model_path=final_path)
+    console.print(f"[dim]Final checkpoint: {final_path}[/dim]")
+
+    # Save checkpoint paths locally for later use
+    paths_file = Path("data/checkpoint_paths.json")
+    paths_file.parent.mkdir(parents=True, exist_ok=True)
+    paths_file.write_text(json.dumps({
+        "base": base_path,
+        "final": final_path,
+        "model": config.base_model,
+    }, indent=2))
+    console.print(f"[dim]Checkpoint paths saved to {paths_file}[/dim]")
 
     return base_sampling_client, finetuned_sampling_client

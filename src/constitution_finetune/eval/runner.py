@@ -41,14 +41,19 @@ def _sample_response(
     prompt = renderer.build_generation_prompt(messages)
     stop_seqs = renderer.get_stop_sequences()
 
-    response = client.sample(
-        model_input=prompt,
+    sampling_params = tinker.SamplingParams(
         max_tokens=1024,
         temperature=0.3,  # Low temp for more consistent eval
-        stop_sequences=stop_seqs,
+        stop=stop_seqs,
     )
+    future = client.sample(
+        prompt=prompt,
+        num_samples=1,
+        sampling_params=sampling_params,
+    )
+    sample_response = future.result()
 
-    msg, _done = renderer.parse_response(response.tokens)
+    msg, _done = renderer.parse_response(sample_response.sequences[0].tokens)
     if isinstance(msg["content"], str):
         return msg["content"]
     return msg["content"][0]["text"]

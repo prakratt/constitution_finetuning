@@ -66,14 +66,19 @@ def smoke_test(
         prompt = renderer.build_generation_prompt(test["messages"])
         stop_seqs = renderer.get_stop_sequences()
 
-        response = sampling_client.sample(
-            model_input=prompt,
+        sampling_params = tinker.SamplingParams(
             max_tokens=512,
             temperature=0.7,
-            stop_sequences=stop_seqs,
+            stop=stop_seqs,
         )
+        future = sampling_client.sample(
+            prompt=prompt,
+            num_samples=1,
+            sampling_params=sampling_params,
+        )
+        sample_response = future.result()
 
-        response_msg, _done = renderer.parse_response(response.tokens)
+        response_msg, _done = renderer.parse_response(sample_response.sequences[0].tokens)
         response_text = (
             response_msg["content"]
             if isinstance(response_msg["content"], str)
