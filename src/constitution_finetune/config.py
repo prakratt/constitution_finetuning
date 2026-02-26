@@ -11,15 +11,15 @@ from pydantic import BaseModel, Field
 class ConstitutionConfig(BaseModel):
     url: str = "https://raw.githubusercontent.com/anthropics/claude-constitution/refs/heads/main/20260120-constitution.md"
     cache_path: str = "data/constitution.md"
-    target_model_name: str = "Llama"
+    target_model_name: str = "Qwen"
 
 
 class DatagenConfig(BaseModel):
     api_base_url: str = "https://openrouter.ai/api/v1"
     api_key_env: str = "OPENROUTER_API_KEY"
     model: str = "anthropic/claude-sonnet-4"
-    examples_per_principle: int = 2
-    max_principles_per_category: int = 15
+    examples_per_principle: int = 3
+    max_principles_per_category: int = 30
     max_concurrency: int = 10
     output_path: str = "data/training_data.jsonl"
     max_retries: int = 3
@@ -33,7 +33,7 @@ class AdamConfig(BaseModel):
 
 
 class TrainingConfig(BaseModel):
-    base_model: str = "meta-llama/Llama-3.1-8B-Instruct"
+    base_model: str = "Qwen/Qwen3-8B"
     lora_rank: int = 32
     adam: AdamConfig = Field(default_factory=AdamConfig)
     batch_size: int = 32
@@ -41,7 +41,7 @@ class TrainingConfig(BaseModel):
     max_seq_length: int = 2048
     warmup_fraction: float = 0.05
     save_every_steps: int = 50
-    run_name: str = "constitutional-llama-8b"
+    run_name: str = "constitutional-qwen3-8b"
     tinker_base_url: str | None = None
 
 

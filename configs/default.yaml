@@ -6,7 +6,7 @@ constitution:
   # Local cache path (relative to project root)
   cache_path: "data/constitution.md"
   # Replace "Claude" with this model name in principles
-  target_model_name: "Llama"
+  target_model_name: "Qwen"
 
 datagen:
   # OpenRouter API configuration
@@ -15,9 +15,9 @@ datagen:
   # Model to use for generating training data
   model: "anthropic/claude-sonnet-4"
   # Number of examples to generate per principle-category pair
-  examples_per_principle: 2
+  examples_per_principle: 3
   # Max principles sampled per category (limits total volume)
-  max_principles_per_category: 15
+  max_principles_per_category: 30
   # Max concurrent API requests
   max_concurrency: 10
   # Output path for generated training data
@@ -27,7 +27,7 @@ datagen:
 
 training:
   # Base model to fine-tune
-  base_model: "meta-llama/Llama-3.1-8B-Instruct"
+  base_model: "Qwen/Qwen3-8B"
   # LoRA configuration
   lora_rank: 32
   # Optimizer
@@ -45,7 +45,7 @@ training:
   # Checkpointing
   save_every_steps: 50
   # Final model name
-  run_name: "constitutional-llama-8b"
+  run_name: "constitutional-qwen3-8b"
 
   # Tinker service URL (null = use default)
   tinker_base_url: null
