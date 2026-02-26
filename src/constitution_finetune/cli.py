@@ -1,4 +1,4 @@
-"""CLI entrypoint: confine {fetch,generate,train,run}."""
+"""CLI entrypoint: confine {fetch,generate,train,eval,run}."""
 
 from __future__ import annotations
 
@@ -60,12 +60,37 @@ def cmd_train(config: PipelineConfig) -> None:
     """Run LoRA fine-tuning with Tinker."""
     from .training import train, smoke_test
 
-    sampling_client = train(config.training, data_path=config.datagen.output_path)
-    smoke_test(sampling_client, config.training.base_model)
+    base_client, ft_client = train(config.training, data_path=config.datagen.output_path)
+    smoke_test(ft_client, config.training.base_model)
+
+
+def cmd_eval(config: PipelineConfig) -> None:
+    """Run evaluation comparing base vs finetuned model."""
+    from .eval.compare import generate_report
+    from .eval.judge import judge_results
+    from .eval.runner import get_base_sampling_client, run_evaluation
+
+    from .training import train
+
+    console.print("[bold]Training model and preparing evaluation...[/bold]\n")
+
+    # Train and get both clients
+    base_client, ft_client = train(
+        config.training, data_path=config.datagen.output_path
+    )
+
+    # Run evaluation prompts through both models
+    results = run_evaluation(base_client, ft_client, config.training.base_model)
+
+    # Judge with Claude
+    scores = judge_results(results, config.datagen)
+
+    # Generate report
+    generate_report(results, scores)
 
 
 def cmd_run(config: PipelineConfig) -> None:
-    """Run the full pipeline: fetch → generate → train."""
+    """Run the full pipeline: fetch → generate → train → eval."""
     console.print("[bold]Starting full pipeline[/bold]\n")
 
     console.rule("[bold]Step 1: Fetch Constitution")
@@ -75,7 +100,21 @@ def cmd_run(config: PipelineConfig) -> None:
     cmd_generate(config)
 
     console.rule("[bold]Step 3: Train Model")
-    cmd_train(config)
+    from .training import train, smoke_test
+
+    base_client, ft_client = train(
+        config.training, data_path=config.datagen.output_path
+    )
+    smoke_test(ft_client, config.training.base_model)
+
+    console.rule("[bold]Step 4: Evaluate")
+    from .eval.compare import generate_report
+    from .eval.judge import judge_results
+    from .eval.runner import run_evaluation
+
+    results = run_evaluation(base_client, ft_client, config.training.base_model)
+    scores = judge_results(results, config.datagen)
+    generate_report(results, scores)
 
     console.print("\n[bold green]Pipeline complete![/bold green]")
 
@@ -99,6 +138,7 @@ def main() -> None:
         ("fetch", "Download and parse the constitution"),
         ("generate", "Generate training data via Claude API"),
         ("train", "Run LoRA fine-tuning with Tinker"),
+        ("eval", "Evaluate base vs finetuned model"),
         ("run", "Run the full pipeline"),
     ]:
         sub = subparsers.add_parser(name, help=help_text)
@@ -116,6 +156,7 @@ def main() -> None:
         "fetch": cmd_fetch,
         "generate": cmd_generate,
         "train": cmd_train,
+        "eval": cmd_eval,
         "run": cmd_run,
     }
     commands[args.command](config)

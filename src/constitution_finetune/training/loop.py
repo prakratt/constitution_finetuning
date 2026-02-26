@@ -30,10 +30,12 @@ def _get_lr(step: int, total_steps: int, config: TrainingConfig) -> float:
         return base_lr * max(0.0, 1.0 - progress)
 
 
-def train(config: TrainingConfig, data_path: str = "data/training_data.jsonl") -> tinker.SamplingClient:
+def train(
+    config: TrainingConfig, data_path: str = "data/training_data.jsonl"
+) -> tuple[tinker.SamplingClient, tinker.SamplingClient]:
     """Run the full LoRA training loop.
 
-    Returns a SamplingClient for the finetuned model.
+    Returns (base_sampling_client, finetuned_sampling_client).
     """
     # Load and prepare data
     console.print("[bold]Loading training data...[/bold]")
@@ -53,6 +55,12 @@ def train(config: TrainingConfig, data_path: str = "data/training_data.jsonl") -
     training_client = service_client.create_lora_training_client(
         base_model=config.base_model,
         rank=config.lora_rank,
+    )
+
+    # Save base model checkpoint before training (LoRA is zero-initialized)
+    console.print("[bold]Saving base model checkpoint...[/bold]")
+    base_sampling_client = training_client.save_weights_and_get_sampling_client(
+        name=f"{config.run_name}-base"
     )
 
     # Calculate training schedule
@@ -133,8 +141,8 @@ def train(config: TrainingConfig, data_path: str = "data/training_data.jsonl") -
 
     # Save final model
     console.print("[bold green]Training complete! Saving final model...[/bold green]")
-    sampling_client = training_client.save_weights_and_get_sampling_client(
+    finetuned_sampling_client = training_client.save_weights_and_get_sampling_client(
         name=f"{config.run_name}-final"
     )
 
-    return sampling_client
+    return base_sampling_client, finetuned_sampling_client
