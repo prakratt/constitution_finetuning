@@ -9,7 +9,7 @@ import random
 from collections import defaultdict
 from typing import AsyncIterator
 
-from anthropic import AsyncAnthropic
+from openai import AsyncOpenAI
 from rich.console import Console
 
 from ..config import DatagenConfig
@@ -20,14 +20,14 @@ from .prompts import GENERATION_PROMPT, SYSTEM_PROMPT
 console = Console()
 
 
-def _build_client(config: DatagenConfig) -> AsyncAnthropic:
-    """Create an AsyncAnthropic client pointing at OpenRouter."""
+def _build_client(config: DatagenConfig) -> AsyncOpenAI:
+    """Create an AsyncOpenAI client pointing at OpenRouter."""
     api_key = os.environ.get(config.api_key_env)
     if not api_key:
         raise RuntimeError(
             f"Missing API key: set the {config.api_key_env} environment variable"
         )
-    return AsyncAnthropic(
+    return AsyncOpenAI(
         api_key=api_key,
         base_url=config.api_base_url,
     )
@@ -63,7 +63,7 @@ def _build_pairs(
 
 
 async def _generate_one(
-    client: AsyncAnthropic,
+    client: AsyncOpenAI,
     principle: Principle,
     category: ScenarioCategory,
     model_name: str,
@@ -80,13 +80,15 @@ async def _generate_one(
 
     for attempt in range(config.max_retries):
         try:
-            response = await client.messages.create(
+            response = await client.chat.completions.create(
                 model=config.model,
                 max_tokens=2048,
-                system=system,
-                messages=[{"role": "user", "content": user_msg}],
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user_msg},
+                ],
             )
-            text = response.content[0].text.strip()
+            text = response.choices[0].message.content.strip()
 
             # Strip markdown fencing if present
             if text.startswith("```"):

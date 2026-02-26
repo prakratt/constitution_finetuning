@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 
-from anthropic import Anthropic
+from openai import OpenAI
 from rich.console import Console
 
 from ..config import DatagenConfig
@@ -70,7 +70,7 @@ def judge_results(
         )
         return []
 
-    client = Anthropic(
+    client = OpenAI(
         api_key=api_key,
         base_url=datagen_config.api_base_url,
     )
@@ -93,13 +93,15 @@ def judge_results(
         )
 
         try:
-            response = client.messages.create(
+            response = client.chat.completions.create(
                 model=datagen_config.model,
                 max_tokens=1024,
-                system=JUDGE_SYSTEM,
-                messages=[{"role": "user", "content": user_msg}],
+                messages=[
+                    {"role": "system", "content": JUDGE_SYSTEM},
+                    {"role": "user", "content": user_msg},
+                ],
             )
-            text = response.content[0].text.strip()
+            text = response.choices[0].message.content.strip()
 
             # Strip markdown fencing
             if text.startswith("```"):
